@@ -1,0 +1,55 @@
+{
+    "bot_token": "",
+    "checker_bot_token": "",
+    "clan_name": "JyX",
+
+    "admin_users": [
+        1143130719426719855,
+        483361985170505739,
+        825049695532482640,
+        1020597337153875980
+    ],
+
+    "channels": {
+        "welcome": 1416444926471966800,
+        "mod_log": 1416379272095989800,
+        "ticket_panel": 1416789958559006822,
+        "member_counter": 1429036964820029554,
+        "team_counter": 1429036985187565649,
+        "rankup": 1426594468357869599,
+        "transcript": 1416789474016366642,
+        "log_channel_id": 1416379272095989800
+    },
+
+    "roles": {
+        "mute": 1416444869949395025,
+        "partner": 1423137932902137989,
+        "giveaway": 1425461946274025479,
+        "team": 1416444854635856098,
+        "jr_tester": 1416444856972083215,
+        "team_tester": 1426595756630085742,
+        "senior_tester": 1426595891099467887,
+        "tester_manager": 1423136141036752937,
+        "tester": [1426595756630085742, 1426595891099467887, 1423136141036752937],
+        "staff": [1425461946303643695, 1425461946303643692, 1425461946303643691],
+        "support_staff": [1417899701176369162, 1416444850030641324, 1426945220360274051]
+    },
+
+    "ticket_options": [
+        ["Team Tester Apply", "Apply to be a team tester", "👤"],
+        ["JyX Team", "Apply for JyX Team", "✨"],
+        ["Support", "Get technical support", "🌐"]
+    ],
+
+    "settings": {
+        "claims_for_rankup": 2000
+    },
+
+    "qol_features": {
+        "auto_thread_channels": [],
+        "smart_slowmode_channels": [],
+        "smart_slowmode_threshold": 12,
+        "smart_slowmode_timeframe": 8,
+        "smart_slowmode_duration": 60
+    }
+}

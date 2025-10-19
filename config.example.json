@@ -1,0 +1,52 @@
+{
+    "bot_token": "YOUR_BOT_TOKEN_HERE",
+    "checker_bot_token": "YOUR_CHECKER_BOT_TOKEN_HERE",
+    "clan_name": "JyX",
+
+    "admin_users": [
+        123456789012345678
+    ],
+
+    "channels": {
+        "welcome": 0,
+        "mod_log": 0,
+        "ticket_panel": 0,
+        "member_counter": 0,
+        "team_counter": 0,
+        "rankup": 0,
+        "transcript": 0,
+        "log_channel_id": 0
+    },
+
+    "roles": {
+        "mute": 0,
+        "partner": 0,
+        "giveaway": 0,
+        "team": 0,
+        "jr_tester": 0,
+        "team_tester": 0,
+        "senior_tester": 0,
+        "tester_manager": 0,
+        "tester": [0, 0, 0],
+        "staff": [0, 0, 0],
+        "support_staff": [0, 0, 0]
+    },
+
+    "ticket_options": [
+        ["Team Tester Apply", "Apply to be a team tester", "👤"],
+        ["JyX Team", "Apply for JyX Team", "✨"],
+        ["Support", "Get technical support", "🌐"]
+    ],
+
+    "settings": {
+        "claims_for_rankup": 2000
+    },
+
+    "qol_features": {
+        "auto_thread_channels": [],
+        "smart_slowmode_channels": [],
+        "smart_slowmode_threshold": 12,
+        "smart_slowmode_timeframe": 8,
+        "smart_slowmode_duration": 60
+    }
+}

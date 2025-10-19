@@ -1,0 +1,302 @@
+{
+    "1426298104797200497": {
+        "message_id": 1426298104797200497,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "xitlag",
+        "winners": 1,
+        "end_time": 1760200167.439103,
+        "server_link": "https://discord.gg/BGJAZw5p",
+        "required_role_id": 1425461946303643691,
+        "participants": [],
+        "ended": true,
+        "created_by": 483361985170505739
+    },
+    "1426302947125497871": {
+        "message_id": 1426302947125497871,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "L",
+        "winners": 1,
+        "end_time": 1760201322.402974,
+        "server_link": "https://discord.gg/BGJAZw5p",
+        "required_role_id": 1425461946274025480,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            483361985170505739
+        ]
+    },
+    "1426322758144495686": {
+        "message_id": 1426322758144495686,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "exit",
+        "winners": 1,
+        "end_time": 1760218645.529182,
+        "server_link": null,
+        "required_role_id": null,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739
+    },
+    "1426327316010762270": {
+        "message_id": 1426327316010762270,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "exitlag",
+        "winners": 1,
+        "end_time": 1760219732.350274,
+        "server_link": null,
+        "required_role_id": null,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739
+    },
+    "1427122599909003295": {
+        "message_id": 1427122599909003295,
+        "channel_id": 1425459303950586011,
+        "guild_id": 1425459303057330200,
+        "prize": "50",
+        "winners": 1,
+        "end_time": 1760409343.732654,
+        "server_link": "https://discord.gg/sjqHv55S",
+        "required_role_id": null,
+        "require_server_join": true,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739
+    },
+    "1427123305772482572": {
+        "message_id": 1427123305772482572,
+        "channel_id": 1425472763514327081,
+        "guild_id": 1425459303057330200,
+        "prize": "11t",
+        "winners": 1,
+        "end_time": 1760409512.228899,
+        "server_link": "https://discord.gg/qM9RUqWc",
+        "required_role_id": null,
+        "require_server_join": true,
+        "participants": [
+            1419193115071352894,
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739
+    },
+    "1427144382146023447": {
+        "message_id": 1427144382146023447,
+        "channel_id": 1425459303950586011,
+        "guild_id": 1425459303057330200,
+        "prize": "1",
+        "winners": 11,
+        "end_time": 1760414537.179818,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            483361985170505739
+        ]
+    },
+    "1427147763136593962": {
+        "message_id": 1427147763136593962,
+        "channel_id": 1416379272095989800,
+        "guild_id": 1416109225041465467,
+        "prize": "50IRT",
+        "winners": 1,
+        "end_time": 1760372143.413038,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            483361985170505739
+        ]
+    },
+    "1427150592484049007": {
+        "message_id": 1427150592484049007,
+        "channel_id": 1416444922596167822,
+        "guild_id": 1416109225041465467,
+        "prize": "50 IRT",
+        "winners": 1,
+        "end_time": 1760372817.861191,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 1,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": false,
+        "created_by": 483361985170505739
+    },
+    "1427150870012760197": {
+        "message_id": 1427150870012760197,
+        "channel_id": 1416444922596167822,
+        "guild_id": 1416109225041465467,
+        "prize": "100 IRT",
+        "winners": 1,
+        "end_time": 1760372884.08796,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 1,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": false,
+        "created_by": 483361985170505739
+    },
+    "1427151164528529540": {
+        "message_id": 1427151164528529540,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "10irt",
+        "winners": 1,
+        "end_time": 1760329784.281067,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            483361985170505739
+        ]
+    },
+    "1427152061488955589": {
+        "message_id": 1427152061488955589,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "10irt",
+        "winners": 1,
+        "end_time": 1760329995.025012,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            483361985170505739
+        ]
+    },
+    "1427152543485661265": {
+        "message_id": 1427152543485661265,
+        "channel_id": 1425461947121275025,
+        "guild_id": 1425461945926029333,
+        "prize": "11",
+        "winners": 1,
+        "end_time": 1760330091.460916,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [
+            483361985170505739,
+            1419193115071352894
+        ],
+        "ended": true,
+        "created_by": 483361985170505739,
+        "selected_winners": [
+            1419193115071352894
+        ]
+    },
+    "1427153006851522730": {
+        "message_id": 1427153006851522730,
+        "channel_id": 1416444922596167822,
+        "guild_id": 1416109225041465467,
+        "prize": "100 IRT",
+        "winners": 1,
+        "end_time": 1760373391.931576,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 1,
+        "participants": [
+            483361985170505739
+        ],
+        "ended": false,
+        "created_by": 483361985170505739
+    },
+    "1429057029582098483": {
+        "message_id": 1429057029582098483,
+        "channel_id": 1416379272095989800,
+        "guild_id": 1416109225041465467,
+        "prize": "12",
+        "winners": 1,
+        "end_time": 1760784176.602691,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [],
+        "ended": true,
+        "created_by": 825049695532482640
+    },
+    "1429057246884790302": {
+        "message_id": 1429057246884790302,
+        "channel_id": 1416379272095989800,
+        "guild_id": 1416109225041465467,
+        "prize": "12",
+        "winners": 1,
+        "end_time": 1760784227.774975,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [
+            825049695532482640
+        ],
+        "ended": true,
+        "created_by": 825049695532482640,
+        "selected_winners": [
+            825049695532482640
+        ]
+    },
+    "1429057664716898344": {
+        "message_id": 1429057664716898344,
+        "channel_id": 1416379272095989800,
+        "guild_id": 1416109225041465467,
+        "prize": "12",
+        "winners": 1,
+        "end_time": 1760784327.969411,
+        "server_link": null,
+        "required_role_id": null,
+        "require_server_join": false,
+        "required_invites": 0,
+        "participants": [
+            825049695532482640,
+            483361985170505739
+        ],
+        "ended": true,
+        "created_by": 825049695532482640,
+        "selected_winners": [
+            483361985170505739
+        ]
+    }
+}
