@@ -1,7 +1,4 @@
 # Bot tokens and sensitive data
-bot_token.txt
-checker_token.txt
-panel_config.json
 config.json
 
 # Data files
@@ -11,8 +8,8 @@ points.json
 nicknames.json
 tickets.json
 warnings.json
-scripts.json
-tickets_db.json
+
+
 
 # Python
 __pycache__/
@@ -55,3 +52,4 @@ Thumbs.db
 
 # Logs
 *.log
+
