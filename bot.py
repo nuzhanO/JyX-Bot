@@ -481,7 +481,7 @@ async def send_transcript(channel, closed_by, ticket_type):
 </html>
         '''
 
-        # Save ticket data to database
+       
         if 'tickets' not in globals():
             tickets_db = {}
         else:
@@ -4666,7 +4666,7 @@ async def viewscript(interaction: discord.Interaction, script_id: str):
             ephemeral=True
         )
 
-# ==================== WEB PANEL API ====================
+
 app = web.Application()
 routes = web.RouteTableDef()
 
@@ -4676,7 +4676,7 @@ async def get_server_data(request):
     try:
         guild_id = request.query.get('guild_id')
         if not guild_id:
-            # Return first guild by default
+            
             guilds = bot.guilds
             if not guilds:
                 return web.json_response({'error': 'Bot not in any servers'}, status=400)
@@ -4756,7 +4756,7 @@ async def save_config_api(request):
         new_config = await request.json()
         save_config(new_config)
 
-        # Reload config
+        
         config = new_config
         CLAN_NAME = config.get('clan_name', 'JyX')
 
@@ -4769,11 +4769,11 @@ async def panel_done(request):
     """Called when user clicks Done button - reload all configs and notify channels"""
     global config, CLAN_NAME
     try:
-        # Reload config
+        
         config = load_config()
         CLAN_NAME = config.get('clan_name', 'JyX')
 
-        # Send notifications to affected channels if they changed
+        
         return web.json_response({
             'success': True,
             'message': 'Panel closed, config reloaded!'
@@ -4815,7 +4815,7 @@ async def start_web_server():
 
 async def start_bots():
     """Start both main bot and checker bot concurrently with web server"""
-    # Start web server
+    
     await start_web_server()
 
     if not BOT_TOKEN:
@@ -4837,7 +4837,7 @@ if __name__ == "__main__":
     import sys
     import io
 
-    # Fix Windows encoding issues
+    
     if sys.platform == 'win32':
         sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
