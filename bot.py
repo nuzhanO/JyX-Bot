@@ -8,11 +8,59 @@ from datetime import datetime, timedelta
 import pytz
 import random
 import time
+import uuid
 from collections import defaultdict
+from aiohttp import web
+import threading
+import os
 
-with open('config.json', 'r', encoding='utf-8') as f:
-    config = json.load(f)
+# Read bot tokens from separate files
+try:
+    with open('bot_token.txt', 'r', encoding='utf-8') as f:
+        BOT_TOKEN = f.read().strip()
+except:
+    BOT_TOKEN = ""
 
+try:
+    with open('checker_token.txt', 'r', encoding='utf-8') as f:
+        CHECKER_TOKEN = f.read().strip()
+except:
+    CHECKER_TOKEN = ""
+
+# Load or create config from panel database
+def load_config():
+    try:
+        with open('panel_config.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        # Default config
+        return {
+            'clan_name': 'JyX',
+            'admin_users': [],
+            'channels': {},
+            'roles': {},
+            'ticket_options': [
+                ['Team Tester Apply', 'Apply to be a team tester', '👤'],
+                ['JyX Team', 'Apply for JyX Team', '✨'],
+                ['Support', 'Get technical support', '🌐']
+            ],
+            'settings': {
+                'claims_for_rankup': 2000
+            },
+            'qol_features': {
+                'auto_thread_channels': [],
+                'smart_slowmode_channels': [],
+                'smart_slowmode_threshold': 12,
+                'smart_slowmode_timeframe': 8,
+                'smart_slowmode_duration': 60
+            }
+        }
+
+def save_config(cfg):
+    with open('panel_config.json', 'w', encoding='utf-8') as f:
+        json.dump(cfg, f, indent=4, ensure_ascii=False)
+
+config = load_config()
 CLAN_NAME = config.get('clan_name', 'JyX')
 
 intents = discord.Intents.all()
@@ -49,11 +97,12 @@ closed_channels = set()
 ticket_creators = {}
 claim_counts = defaultdict(int)
 user_permissions = defaultdict(set)
-pending_prizes = {}  
+pending_prizes = {}
+scripts_data = {}
+ticket_abuse = defaultdict(lambda: {'count': 0, 'last_reset': time.time(), 'timeout_until': 0, 'timeout_level': 0})
 
-
-channel_message_history = defaultdict(list)  
-thread_creation_cooldowns = {}  
+channel_message_history = defaultdict(list)
+thread_creation_cooldowns = {}
 active_slowmodes = {} 
 
 ADMIN_USERS = [1143130719426719855, 483361985170505739, 825049695532482640, 1020597337153875980]
@@ -99,10 +148,16 @@ warnings_data = {}
 try:
     with open('warnings.json', 'r', encoding='utf-8') as f:
         warnings_data = json.load(f)
-        
+
         warnings_data = {int(k): v for k, v in warnings_data.items()}
 except:
     warnings_data = {}
+
+try:
+    with open('scripts.json', 'r', encoding='utf-8') as f:
+        scripts_data = json.load(f)
+except:
+    scripts_data = {}
 
 def save_partners():
     with open('partners.json', 'w', encoding='utf-8') as f:
@@ -135,8 +190,15 @@ def save_tickets():
 
 def save_warnings():
     with open('warnings.json', 'w', encoding='utf-8') as f:
-        
+
         json.dump({str(k): v for k, v in warnings_data.items()}, f, indent=4, ensure_ascii=False)
+
+def save_scripts():
+    with open('scripts.json', 'w', encoding='utf-8') as f:
+        json.dump(scripts_data, f, indent=4, ensure_ascii=False)
+
+def generate_script_id():
+    return f"SCR-{str(uuid.uuid4())[:8].upper()}"
 
 def create_error_embed(error_message):
     embed = discord.Embed(
@@ -187,14 +249,12 @@ def has_permission(user_id, command_name, user_roles=None):
 
 async def send_transcript(channel, closed_by, ticket_type):
     try:
-        
         transcript_channel_id = None
         if 'channels' in config and 'transcript' in config['channels']:
             transcript_list = config['channels']['transcript']
             if transcript_list and len(transcript_list) > 0:
                 transcript_channel_id = transcript_list[0]
 
-       
         if not transcript_channel_id:
             transcript_channel_id = config.get('transcript_channel_id')
 
@@ -207,6 +267,11 @@ async def send_transcript(channel, closed_by, ticket_type):
             print(f"Transcript channel not found: {transcript_channel_id}")
             return
 
+        # Generate unique ticket ID
+        ticket_id = f"TKT-{str(uuid.uuid4())[:8].upper()}"
+
+        # Collect messages
+        messages_data = []
         messages_html = ""
         async for message in channel.history(limit=500, oldest_first=True):
             timestamp = message.created_at.astimezone(IRAN_TZ).strftime("%Y-%m-%d %H:%M:%S")
@@ -214,6 +279,16 @@ async def send_transcript(channel, closed_by, ticket_type):
             username = message.author.display_name
             user_id = message.author.id
             content = message.content.replace('<', '&lt;').replace('>', '&gt;').replace('\n', '<br>') if message.content else '<em>No text content</em>'
+
+            # Store message data for database
+            messages_data.append({
+                'timestamp': timestamp,
+                'avatar_url': avatar_url,
+                'username': username,
+                'user_id': user_id,
+                'content': content,
+                'attachments': [{'url': att.url, 'filename': att.filename, 'is_image': att.content_type and att.content_type.startswith('image')} for att in message.attachments] if message.attachments else []
+            })
 
             attachments_html = ""
             if message.attachments:
@@ -406,22 +481,39 @@ async def send_transcript(channel, closed_by, ticket_type):
 </html>
         '''
 
-        filename = f"transcript-{channel.name}-{int(time.time())}.html"
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
+        # Save ticket data to database
+        if 'tickets' not in globals():
+            tickets_db = {}
+        else:
+            try:
+                with open('tickets_db.json', 'r', encoding='utf-8') as f:
+                    tickets_db = json.load(f)
+            except:
+                tickets_db = {}
+
+        tickets_db[ticket_id] = {
+            'ticket_name': channel.name,
+            'ticket_type': ticket_type,
+            'closed_by': closed_by.display_name,
+            'closed_by_id': str(closed_by.id),
+            'closed_at': datetime.now(IRAN_TZ).strftime('%Y-%m-%d %H:%M:%S'),
+            'messages': messages_data,
+            'html_content': html_content
+        }
+
+        with open('tickets_db.json', 'w', encoding='utf-8') as f:
+            json.dump(tickets_db, f, indent=4, ensure_ascii=False)
 
         embed = discord.Embed(
-            title="📋 Ticket Transcript",
-            description=f"**Ticket:** {channel.name}\n**Type:** {ticket_type}\n**Closed By:** {closed_by.mention}\n**Time:** {datetime.now(IRAN_TZ).strftime('%Y-%m-%d %H:%M:%S')}",
+            title="📋 Ticket Transcript Saved",
+            description=f"**Ticket ID:** `{ticket_id}`\n**Ticket:** {channel.name}\n**Type:** {ticket_type}\n**Closed By:** {closed_by.mention}\n**Time:** {datetime.now(IRAN_TZ).strftime('%Y-%m-%d %H:%M:%S')}\n\nView this ticket in the panel using the Ticket ID.",
             color=EMBED_COLOR,
             timestamp=datetime.now(IRAN_TZ)
         )
+        embed.add_field(name="Panel Access", value="Open `panel.html` → Export Ticket tab", inline=False)
         embed.set_footer(text=f"{CLAN_NAME} System")
 
-        await log_channel.send(embed=embed, file=discord.File(filename))
-
-        import os
-        os.remove(filename)
+        await log_channel.send(embed=embed)
 
     except Exception as e:
         print(f"Failed to send transcript: {e}")
@@ -817,6 +909,42 @@ async def on_voice_state_update(member, before, after):
     except Exception as e:
         print(f'Voice state logging error: {e}')
 
+    try:
+        auto_voice_id = config.get('qol_features', {}).get('auto_voice_channel_id')
+        if auto_voice_id and after.channel and after.channel.id == auto_voice_id:
+            guild = member.guild
+            category = after.channel.category
+
+            channel_name = f"{member.display_name}'s Channel"
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(connect=True, view_channel=True),
+                member: discord.PermissionOverwrite(connect=True, manage_channels=True, move_members=True),
+                guild.me: discord.PermissionOverwrite(connect=True, manage_channels=True)
+            }
+
+            new_channel = await guild.create_voice_channel(
+                name=channel_name,
+                category=category,
+                overwrites=overwrites
+            )
+
+            await member.move_to(new_channel)
+
+            await new_channel.edit(user_limit=after.channel.user_limit if after.channel.user_limit else 0)
+    except Exception as e:
+        print(f'Auto voice channel error: {e}')
+
+    try:
+        if before.channel and len(before.channel.members) == 0:
+            if before.channel.category:
+                auto_voice_id = config.get('qol_features', {}).get('auto_voice_channel_id')
+                if auto_voice_id:
+                    parent_channel = member.guild.get_channel(auto_voice_id)
+                    if parent_channel and parent_channel.category == before.channel.category and before.channel.id != auto_voice_id:
+                        await before.channel.delete()
+    except Exception as e:
+        print(f'Auto voice channel deletion error: {e}')
+
 
 
 
@@ -942,7 +1070,40 @@ async def on_message(message):
                         except Exception as e:
                             print(f"Failed to enable slowmode: {e}")
 
-    
+    blacklist_words = config.get('blacklist_words', [])
+    if blacklist_words:
+        message_content_lower = message.content.lower()
+        for word in blacklist_words:
+            if word.lower() in message_content_lower:
+                try:
+                    await message.delete()
+                    warn_embed = discord.Embed(
+                        title="Message Deleted",
+                        description=f"{message.author.mention}, your message contained a blacklisted word and has been removed.",
+                        color=0xFF0000,
+                        timestamp=datetime.now(IRAN_TZ)
+                    )
+                    warn_embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+                    await message.channel.send(embed=warn_embed, delete_after=5)
+
+                    log_channel_id = config.get('channels', {}).get('log_channel_id')
+                    if log_channel_id:
+                        log_channel = bot.get_channel(log_channel_id)
+                        if log_channel:
+                            log_embed = discord.Embed(
+                                title="Blacklist Word Detected",
+                                description=f"**User:** {message.author.mention} ({message.author.id})\n**Channel:** {message.channel.mention}\n**Word:** `{word}`",
+                                color=0xFF0000,
+                                timestamp=datetime.now(IRAN_TZ)
+                            )
+                            log_embed.add_field(name="Message Content", value=message.content[:1000], inline=False)
+                            log_embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+                            await log_channel.send(embed=log_embed)
+                    return
+                except Exception as e:
+                    print(f"Blacklist error: {e}")
+
+
     await bot.process_commands(message)
 
 
@@ -1553,6 +1714,133 @@ async def add_partner(ctx, user: discord.Member, server_name: str, *, message: s
         await ctx.send(
             embed=create_error_embed(f"An error occurred: {str(e)}")
         )
+
+@bot.command(name='savesv')
+async def save_server(ctx):
+    try:
+        if not has_permission(ctx.author.id, "savesv", ctx.author.roles):
+            return await ctx.send(embed=create_error_embed("You don't have permission to use this command"))
+
+        guild = ctx.guild
+
+        backup_data = {
+            'guild_id': guild.id,
+            'guild_name': guild.name,
+            'timestamp': datetime.now(IRAN_TZ).isoformat(),
+            'channels': [],
+            'roles': [],
+            'categories': []
+        }
+
+        for category in guild.categories:
+            backup_data['categories'].append({
+                'id': category.id,
+                'name': category.name,
+                'position': category.position
+            })
+
+        for channel in guild.channels:
+            channel_data = {
+                'id': channel.id,
+                'name': channel.name,
+                'type': str(channel.type),
+                'position': channel.position,
+                'category_id': channel.category.id if channel.category else None
+            }
+            backup_data['channels'].append(channel_data)
+
+        for role in guild.roles:
+            if role.name != "@everyone":
+                role_data = {
+                    'id': role.id,
+                    'name': role.name,
+                    'color': role.color.value,
+                    'permissions': role.permissions.value,
+                    'position': role.position,
+                    'hoist': role.hoist,
+                    'mentionable': role.mentionable
+                }
+                backup_data['roles'].append(role_data)
+
+        backup_file = f'server_backup_{guild.id}.json'
+        with open(backup_file, 'w', encoding='utf-8') as f:
+            json.dump(backup_data, f, indent=2, ensure_ascii=False)
+
+        embed = discord.Embed(
+            title="Server Backup Saved",
+            description=f"Backup saved to `{backup_file}`\n\n**Categories:** {len(backup_data['categories'])}\n**Channels:** {len(backup_data['channels'])}\n**Roles:** {len(backup_data['roles'])}",
+            color=0x57F287,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        await ctx.send(embed=create_error_embed(f"An error occurred: {str(e)}"))
+
+@bot.command(name='loadsv')
+async def load_server(ctx, filename: str):
+    try:
+        if not has_permission(ctx.author.id, "loadsv", ctx.author.roles):
+            return await ctx.send(embed=create_error_embed("You don't have permission to use this command"))
+
+        if not filename.endswith('.json'):
+            filename += '.json'
+
+        if not os.path.exists(filename):
+            return await ctx.send(embed=create_error_embed(f"Backup file `{filename}` not found"))
+
+        with open(filename, 'r', encoding='utf-8') as f:
+            backup_data = json.load(f)
+
+        guild = ctx.guild
+
+        await ctx.send(embed=create_success_embed("Loading Backup", "Starting server restoration..."))
+
+        for category_data in backup_data['categories']:
+            existing_cat = discord.utils.get(guild.categories, name=category_data['name'])
+            if not existing_cat:
+                await guild.create_category(name=category_data['name'])
+
+        for role_data in backup_data['roles']:
+            existing_role = discord.utils.get(guild.roles, name=role_data['name'])
+            if not existing_role:
+                await guild.create_role(
+                    name=role_data['name'],
+                    color=discord.Color(role_data['color']),
+                    permissions=discord.Permissions(role_data['permissions']),
+                    hoist=role_data['hoist'],
+                    mentionable=role_data['mentionable']
+                )
+
+        for channel_data in backup_data['channels']:
+            existing_channel = discord.utils.get(guild.channels, name=channel_data['name'])
+            if not existing_channel:
+                category = None
+                if channel_data['category_id']:
+                    for cat_data in backup_data['categories']:
+                        if cat_data['id'] == channel_data['category_id']:
+                            category = discord.utils.get(guild.categories, name=cat_data['name'])
+                            break
+
+                if 'text' in channel_data['type']:
+                    await guild.create_text_channel(name=channel_data['name'], category=category)
+                elif 'voice' in channel_data['type']:
+                    await guild.create_voice_channel(name=channel_data['name'], category=category)
+
+        embed = discord.Embed(
+            title="Server Backup Loaded",
+            description=f"Server restored from `{filename}`\n\n**Categories:** {len(backup_data['categories'])}\n**Channels:** {len(backup_data['channels'])}\n**Roles:** {len(backup_data['roles'])}",
+            color=0x57F287,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await ctx.send(embed=embed)
+
+    except Exception as e:
+        await ctx.send(embed=create_error_embed(f"An error occurred: {str(e)}"))
 
 class PartnerView(discord.ui.View):
     def __init__(self, partners_list):
@@ -3600,6 +3888,38 @@ async def create_ticket(interaction: discord.Interaction, category: str, emoji: 
         asyncio.create_task(auto_delete_message(interaction))
         return
 
+    user_id = interaction.user.id
+    abuse_data = ticket_abuse[user_id]
+    current_time = time.time()
+
+    if current_time < abuse_data['timeout_until']:
+        remaining = int(abuse_data['timeout_until'] - current_time)
+        hours = remaining // 3600
+        await interaction.response.send_message(embed=create_error_embed(f"You are timed out from creating tickets for {hours} more hours"), ephemeral=True)
+        return
+
+    if current_time - abuse_data['last_reset'] > 3600:
+        abuse_data['count'] = 0
+        abuse_data['last_reset'] = current_time
+
+    abuse_data['count'] += 1
+
+    if abuse_data['count'] >= 15:
+        abuse_data['timeout_level'] += 1
+        timeout_hours = 12 * (2 ** (abuse_data['timeout_level'] - 1))
+        abuse_data['timeout_until'] = current_time + (timeout_hours * 3600)
+        abuse_data['count'] = 0
+        await interaction.response.send_message(embed=create_error_embed(f"Ticket spam detected! You are timed out for {timeout_hours} hours"), ephemeral=True)
+        return
+    elif abuse_data['count'] >= 6:
+        if current_time - abuse_data['last_reset'] < 1800:
+            abuse_data['timeout_level'] += 1
+            timeout_hours = 12 * (2 ** (abuse_data['timeout_level'] - 1))
+            abuse_data['timeout_until'] = current_time + (timeout_hours * 3600)
+            abuse_data['count'] = 0
+            await interaction.response.send_message(embed=create_error_embed(f"Ticket spam detected! You are timed out for {timeout_hours} hours"), ephemeral=True)
+            return
+
     if not interaction.guild.me.guild_permissions.manage_channels:
         await interaction.response.send_message(embed=create_error_embed("Bot lacks permission to manage channels"), ephemeral=True)
         asyncio.create_task(auto_delete_message(interaction))
@@ -3714,7 +4034,8 @@ async def create_ticket(interaction: discord.Interaction, category: str, emoji: 
                 mention_text = fallback_role.mention
 
     try:
-        await ticket_channel.send(content=mention_text if mention_text else None, embed=embed, view=TicketManagementView(ticket_channel))
+        msg = await ticket_channel.send(content=mention_text if mention_text else None, embed=embed, view=TicketManagementView(ticket_channel))
+        await msg.pin()
         await interaction.response.send_message(embed=create_success_embed("Ticket Created", f"Ticket created: {ticket_channel.mention}"), ephemeral=True)
     except discord.errors.Forbidden:
         await interaction.response.send_message(embed=create_error_embed("Bot lacks permission to send messages in the ticket channel"), ephemeral=True)
@@ -3833,7 +4154,8 @@ async def create_ticket_deferred(interaction: discord.Interaction, category: str
                 mention_text = fallback_role.mention
 
     try:
-        await ticket_channel.send(content=mention_text if mention_text else None, embed=embed, view=TicketManagementView(ticket_channel))
+        msg = await ticket_channel.send(content=mention_text if mention_text else None, embed=embed, view=TicketManagementView(ticket_channel))
+        await msg.pin()
         await interaction.followup.send(embed=create_success_embed("Ticket Created", f"Ticket created: {ticket_channel.mention}"), ephemeral=True)
     except discord.errors.Forbidden:
         await interaction.followup.send(embed=create_error_embed("Bot lacks permission to send messages in the ticket channel"), ephemeral=True)
@@ -4187,19 +4509,345 @@ async def rankup(interaction: discord.Interaction, user: discord.Member, reason:
             embed=create_error_embed(f"An error occurred: {str(e)}"),
             ephemeral=True
         )
-async def start_bots():
-    """Start both main bot and checker bot concurrently"""
-    async with bot:
-        async with checker_bot:
-            await asyncio.gather(
-                bot.start(config['bot_token']),
-                checker_bot.start(config['checker_bot_token'])
+
+@tree.command(name="savescript", description="Save a script/text with a unique ID for panel access")
+@app_commands.describe(content="The script or text content to save")
+async def savescript(interaction: discord.Interaction, content: str):
+    try:
+        if not has_permission(interaction.user.id, "savescript", interaction.user.roles):
+            return await interaction.response.send_message(
+                embed=create_error_embed("You don't have permission to use this command"),
+                ephemeral=True
             )
 
-if __name__ == "__main__":
+        script_id = generate_script_id()
+        scripts_data[script_id] = {
+            'content': content,
+            'timestamp': datetime.now(IRAN_TZ).strftime('%Y-%m-%d %H:%M:%S'),
+            'channelId': str(interaction.channel_id),
+            'userId': str(interaction.user.id),
+            'username': str(interaction.user)
+        }
+        save_scripts()
+
+        embed = discord.Embed(
+            title="Script Saved",
+            description=f"Your script has been saved successfully!\n\n**Script ID:** `{script_id}`\n\nYou can view this script in the panel using this ID.",
+            color=0x5cb85c,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.add_field(name="Panel Access", value="Open `panel.html` in your browser and use the Script Viewer tab", inline=False)
+        embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        await interaction.response.send_message(
+            embed=create_error_embed(f"An error occurred: {str(e)}"),
+            ephemeral=True
+        )
+
+@tree.command(name="panel", description="Get the control panel link")
+async def panel_command(interaction: discord.Interaction):
     try:
+        if not has_permission(interaction.user.id, "panel", interaction.user.roles):
+            return await interaction.response.send_message(
+                embed=create_error_embed("You don't have permission to use this command"),
+                ephemeral=True
+            )
+
+        embed = discord.Embed(
+            title="🎛️ Bot Control Panel",
+            description="Access the web panel to manage your bot configuration",
+            color=0x5865F2,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.add_field(name="Panel URL", value="[http://localhost:8080](http://localhost:8080)", inline=False)
+        embed.add_field(
+            name="Features",
+            value="• Set channels, roles, and admins with right-click\n• Manage permissions\n• View scripts and tickets\n• Save & Reload config without restart",
+            inline=False
+        )
+        embed.set_footer(text=f"{CLAN_NAME} System | Click 'Done' in panel when finished", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        await interaction.response.send_message(
+            embed=create_error_embed(f"An error occurred: {str(e)}"),
+            ephemeral=True
+        )
+
+@tree.command(name="region", description="Change voice channel region")
+@app_commands.describe(region="The region to set (auto, us-west, us-east, us-central, us-south, singapore, brazil, hongkong, russia, japan, rotterdam, southafrica, sydney, india)")
+async def region_command(interaction: discord.Interaction, region: str):
+    try:
+        if not has_permission(interaction.user.id, "region", interaction.user.roles):
+            return await interaction.response.send_message(
+                embed=create_error_embed("You don't have permission to use this command"),
+                ephemeral=True
+            )
+
+        if not interaction.user.voice or not interaction.user.voice.channel:
+            return await interaction.response.send_message(
+                embed=create_error_embed("You must be in a voice channel to use this command"),
+                ephemeral=True
+            )
+
+        voice_channel = interaction.user.voice.channel
+
+        valid_regions = {
+            'auto': None,
+            'us-west': discord.VoiceRegion.us_west,
+            'us-east': discord.VoiceRegion.us_east,
+            'us-central': discord.VoiceRegion.us_central,
+            'us-south': discord.VoiceRegion.us_south,
+            'singapore': discord.VoiceRegion.singapore,
+            'brazil': discord.VoiceRegion.brazil,
+            'hongkong': discord.VoiceRegion.hongkong,
+            'russia': discord.VoiceRegion.russia,
+            'japan': discord.VoiceRegion.japan,
+            'rotterdam': discord.VoiceRegion.rotterdam,
+            'southafrica': discord.VoiceRegion.south_africa,
+            'sydney': discord.VoiceRegion.sydney,
+            'india': discord.VoiceRegion.india
+        }
+
+        region_lower = region.lower()
+        if region_lower not in valid_regions:
+            return await interaction.response.send_message(
+                embed=create_error_embed(f"Invalid region. Valid regions: {', '.join(valid_regions.keys())}"),
+                ephemeral=True
+            )
+
+        await voice_channel.edit(rtc_region=valid_regions[region_lower])
+
+        embed = discord.Embed(
+            title="Voice Region Changed",
+            description=f"Region for {voice_channel.mention} changed to **{region}**",
+            color=0x57F287,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        await interaction.response.send_message(
+            embed=create_error_embed(f"An error occurred: {str(e)}"),
+            ephemeral=True
+        )
+
+@tree.command(name="viewscript", description="View a saved script by ID")
+@app_commands.describe(script_id="The script ID to view")
+async def viewscript(interaction: discord.Interaction, script_id: str):
+    try:
+        if script_id not in scripts_data:
+            return await interaction.response.send_message(
+                embed=create_error_embed(f"Script not found with ID: {script_id}"),
+                ephemeral=True
+            )
+
+        script = scripts_data[script_id]
+        embed = discord.Embed(
+            title="Script Details",
+            description=f"**ID:** `{script_id}`\n**Created:** {script.get('timestamp', 'Unknown')}\n**By:** {script.get('username', 'Unknown')}",
+            color=EMBED_COLOR,
+            timestamp=datetime.now(IRAN_TZ)
+        )
+        embed.add_field(name="Content", value=f"```\n{script['content'][:1000]}\n```", inline=False)
+        embed.set_footer(text=f"{CLAN_NAME} System", icon_url=bot.user.avatar.url if bot.user.avatar else None)
+
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    except Exception as e:
+        await interaction.response.send_message(
+            embed=create_error_embed(f"An error occurred: {str(e)}"),
+            ephemeral=True
+        )
+
+# ==================== WEB PANEL API ====================
+app = web.Application()
+routes = web.RouteTableDef()
+
+@routes.get('/api/server-data')
+async def get_server_data(request):
+    """Get all server channels, roles, and members"""
+    try:
+        guild_id = request.query.get('guild_id')
+        if not guild_id:
+            # Return first guild by default
+            guilds = bot.guilds
+            if not guilds:
+                return web.json_response({'error': 'Bot not in any servers'}, status=400)
+            guild = guilds[0]
+        else:
+            guild = bot.get_guild(int(guild_id))
+
+        if not guild:
+            return web.json_response({'error': 'Guild not found'}, status=404)
+
+        data = {
+            'guild': {
+                'id': str(guild.id),
+                'name': guild.name,
+                'icon': str(guild.icon.url) if guild.icon else None
+            },
+            'channels': [
+                {
+                    'id': str(ch.id),
+                    'name': ch.name,
+                    'type': str(ch.type),
+                    'category': ch.category.name if ch.category else None
+                }
+                for ch in guild.channels if isinstance(ch, (discord.TextChannel, discord.VoiceChannel))
+            ],
+            'roles': [
+                {
+                    'id': str(role.id),
+                    'name': role.name,
+                    'color': str(role.color),
+                    'position': role.position
+                }
+                for role in guild.roles
+            ],
+            'members': [
+                {
+                    'id': str(member.id),
+                    'name': member.name,
+                    'display_name': member.display_name,
+                    'avatar': str(member.display_avatar.url),
+                    'roles': [str(r.id) for r in member.roles]
+                }
+                for member in guild.members
+            ]
+        }
+        return web.json_response(data)
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.get('/api/tickets')
+async def get_tickets(request):
+    try:
+        with open('tickets_db.json', 'r', encoding='utf-8') as f:
+            tickets = json.load(f)
+        return web.json_response(tickets)
+    except:
+        return web.json_response({})
+
+@routes.get('/api/scripts')
+async def get_scripts(request):
+    try:
+        with open('scripts.json', 'r', encoding='utf-8') as f:
+            scripts = json.load(f)
+        return web.json_response(scripts)
+    except:
+        return web.json_response({})
+
+@routes.get('/api/config')
+async def get_config_api(request):
+    global config
+    return web.json_response(config)
+
+@routes.post('/api/config')
+async def save_config_api(request):
+    global config, CLAN_NAME
+    try:
+        new_config = await request.json()
+        save_config(new_config)
+
+        # Reload config
+        config = new_config
+        CLAN_NAME = config.get('clan_name', 'JyX')
+
+        return web.json_response({'success': True, 'message': 'Config saved and reloaded successfully!'})
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.post('/api/panel/done')
+async def panel_done(request):
+    """Called when user clicks Done button - reload all configs and notify channels"""
+    global config, CLAN_NAME
+    try:
+        # Reload config
+        config = load_config()
+        CLAN_NAME = config.get('clan_name', 'JyX')
+
+        # Send notifications to affected channels if they changed
+        return web.json_response({
+            'success': True,
+            'message': 'Panel closed, config reloaded!'
+        })
+    except Exception as e:
+        return web.json_response({'error': str(e)}, status=500)
+
+@routes.get('/{path:.*}')
+async def serve_file(request):
+    path = request.match_info['path']
+    if not path:
+        path = 'panel.html'
+    try:
+        with open(path, 'rb') as f:
+            content = f.read()
+
+        content_type = 'text/html'
+        if path.endswith('.js'):
+            content_type = 'application/javascript'
+        elif path.endswith('.css'):
+            content_type = 'text/css'
+        elif path.endswith('.json'):
+            content_type = 'application/json'
+
+        return web.Response(body=content, content_type=content_type)
+    except FileNotFoundError:
+        return web.Response(text='File not found', status=404)
+
+app.add_routes(routes)
+
+async def start_web_server():
+    """Start the web panel server"""
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, 'localhost', 8080)
+    await site.start()
+    print(f'🌐 Panel Server running at http://localhost:8080')
+    print(f'📊 Open http://localhost:8080 in your browser')
+
+async def start_bots():
+    """Start both main bot and checker bot concurrently with web server"""
+    # Start web server
+    await start_web_server()
+
+    if not BOT_TOKEN:
+        print("❌ Bot token not found! Please add your token to bot_token.txt")
+        return
+
+    async with bot:
+        if CHECKER_TOKEN:
+            async with checker_bot:
+                await asyncio.gather(
+                    bot.start(BOT_TOKEN),
+                    checker_bot.start(CHECKER_TOKEN)
+                )
+        else:
+            print("⚠️  Checker bot token not found, running main bot only")
+            await bot.start(BOT_TOKEN)
+
+if __name__ == "__main__":
+    import sys
+    import io
+
+    # Fix Windows encoding issues
+    if sys.platform == 'win32':
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+    try:
+        print("🚀 Starting JyX Bot...")
+        print(f"📁 Config file: panel_config.json")
+        print(f"🔑 Token file: bot_token.txt")
         asyncio.run(start_bots())
     except KeyboardInterrupt:
-        print("Bots stopped by user")
+        print("\n👋 Bots stopped by user")
     except Exception as e:
-        print(f"Failed to start bots: {e}")
+        print(f"❌ Failed to start bots: {e}")

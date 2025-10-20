@@ -1,0 +1,44 @@
+{
+    "clan_name": "JyX",
+    "admin_users": [],
+    "channels": {
+        "mod_log": 1417331377334128600,
+        "ticket_panel": 1328004642105458700,
+        "transcript": 1415295245528072200,
+        "rankup": 1328103165542793200,
+        "welcome": 1328384828965392400
+    },
+    "roles": {
+        "team": 1418409501106638800,
+        "mute": 1418407633739579400,
+        "partner": 1329925792993378600,
+        "giveaway": 1329925681215312100
+    },
+    "ticket_options": [
+        [
+            "Team Tester Apply",
+            "Apply to be a team tester",
+            "👤"
+        ],
+        [
+            "JyX Team",
+            "Apply for JyX Team",
+            "✨"
+        ],
+        [
+            "Support",
+            "Get technical support",
+            "🌐"
+        ]
+    ],
+    "settings": {
+        "claims_for_rankup": 2000
+    },
+    "qol_features": {
+        "auto_thread_channels": [],
+        "smart_slowmode_channels": [],
+        "smart_slowmode_threshold": 12,
+        "smart_slowmode_timeframe": 8,
+        "smart_slowmode_duration": 60
+    }
+}

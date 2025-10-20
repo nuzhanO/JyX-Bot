@@ -1,0 +1,1 @@
+YOUR_CHECKER_BOT_TOKEN_HERE (optional)
